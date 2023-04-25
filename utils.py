@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from PIL import Image
 import torchvision
 import numpy as np
+from torchvision.utils import save_image
 
 # Parse torch version for autocast
 # ######################################################
@@ -27,14 +28,9 @@ def show_tensor_images(image_tensor):
 
 
 
+
+
+
 def save_images(images, path, **kwargs):
-    print('이제 사진을 저장합니다~~~~!!ㅏㅇ너리ㅏㄴ어링너ㅏㅣㄹㅇㄴ')
-    # (0,1,2,3)
-    images = (images + 1) / 2
-    images = images[:1]
-    ndarr = images.squeeze()
-    ndarr = images.to('cpu').numpy()
+    save_image(images[:1], path)
     
-    # im = Image.fromarray((ndarr * 255).astype(np.uint8))
-    im = Image.fromarray(ndarr)
-    im.save(path)
