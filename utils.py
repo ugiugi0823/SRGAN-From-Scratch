@@ -1,6 +1,10 @@
+import torch
 from tqdm import tqdm
 from torchvision.utils import make_grid
 import matplotlib.pyplot as plt
+from PIL import Image
+import torchvision
+import numpy as np
 
 # Parse torch version for autocast
 # ######################################################
@@ -20,3 +24,17 @@ def show_tensor_images(image_tensor):
     plt.axis('off')
     plt.imshow(image_grid.permute(1, 2, 0).squeeze())
     plt.show()
+
+
+
+def save_images(images, path, **kwargs):
+    print('이제 사진을 저장합니다~~~~!!ㅏㅇ너리ㅏㄴ어링너ㅏㅣㄹㅇㄴ')
+    # (0,1,2,3)
+    images = (images + 1) / 2
+    images = images[:1]
+    ndarr = images.squeeze()
+    ndarr = images.to('cpu').numpy()
+    
+    # im = Image.fromarray((ndarr * 255).astype(np.uint8))
+    im = Image.fromarray(ndarr)
+    im.save(path)
