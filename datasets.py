@@ -2,6 +2,7 @@ from PIL import Image
 import numpy as np
 import torchvision
 import torchvision.transforms as transforms
+import torch
 
 # We are using STL (for speed and also since ImageNet is no longer publicly available)
 USING_STL = True
