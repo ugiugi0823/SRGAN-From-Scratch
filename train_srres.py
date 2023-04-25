@@ -1,3 +1,21 @@
+from tqdm import tqdm
+import torch
+from loss import Loss
+from utils import show_tensor_images, save_images
+from modules import Generator
+from datasets import Dataset
+import os
+
+import torch._dynamo
+
+
+# Parse torch version for autocast
+# ######################################################
+version = torch.__version__
+version = tuple(int(n) for n in version.split('.')[:-1])
+has_autocast = version >= (1, 6)
+# ######################################################
+
 def train_srresnet(srresnet, dataloader, device, lr=1e-4, total_steps=1e6, display_step=500):
     srresnet = srresnet.to(device).train()
     optimizer = torch.optim.Adam(srresnet.parameters(), lr=lr)
@@ -28,11 +46,43 @@ def train_srresnet(srresnet, dataloader, device, lr=1e-4, total_steps=1e6, displ
 
             if cur_step % display_step == 0 and cur_step > 0:
                 print('Step {}: SRResNet loss: {:.5f}'.format(cur_step, mean_loss))
+                # print('lr_real', lr_real.detach().cpu().numpy().shape)
+                # print('hr_fakr', hr_fake.detach().cpu().numpy().shape)
+                # print('hr_real', hr_real.detach().cpu().numpy().shape)
                 show_tensor_images(lr_real * 2 - 1)
                 show_tensor_images(hr_fake.to(hr_real.dtype))
                 show_tensor_images(hr_real)
                 mean_loss = 0.0
+                save_images(lr_real, os.path.join("/content/SRGAN-From-Scratch/img/lr_real", f"lr_real_{cur_step}.jpg"))
+                save_images(hr_fake, os.path.join("/content/SRGAN-From-Scratch/img/hr_fake", f"hr_fake_{cur_step}.jpg"))
+                save_images(hr_real, os.path.join("/content/SRGAN-From-Scratch/img/hr_real", f"hr_real_{cur_step}.jpg"))
+                
 
             cur_step += 1
             if cur_step == total_steps:
                 break
+
+
+if __name__ == "__main__":
+  torch._dynamo.config.suppress_errors = True
+  torch._dynamo.config.verbose= True
+
+  device = 'cuda' if torch.cuda.is_available() else 'cpu'
+  generator = Generator(n_res_blocks=16, n_ps_blocks=2)
+  generator = torch.compile(generator, backend="inductor")
+
+  # Uncomment the following lines if you're using ImageNet
+  # dataloader = torch.utils.data.DataLoader(
+  #     Dataset('data', 'train', download=True, hr_size=[384, 384], lr_size=[96, 96]),
+  #     batch_size=16, pin_memory=True, shuffle=True,
+  # )
+  # train_srresnet(generator, dataloader, device, lr=1e-4, total_steps=1e6, display_step=500)
+  # torch.save(generator, 'srresnet.pt')
+  # Uncomment the following lines if you're using STL
+  dataloader = torch.utils.data.DataLoader(
+      Dataset('data', 'train', download=True, hr_size=[96, 96], lr_size=[24, 24]),
+      batch_size=16, pin_memory=True, shuffle=True,
+  )
+  train_srresnet(generator, dataloader, device, lr=1e-4, total_steps=1e5, display_step=1000)
+  torch.save(generator, 'srresnet.pt')
+      
