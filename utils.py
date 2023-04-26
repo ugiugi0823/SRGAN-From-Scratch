@@ -6,6 +6,9 @@ from PIL import Image
 import torchvision
 import numpy as np
 from torchvision.utils import save_image
+from PIL import Image
+from torch.utils.data import DataLoader
+from datasets import Dataset
 
 # Parse torch version for autocast
 # ######################################################
@@ -13,6 +16,15 @@ version = torch.__version__
 version = tuple(int(n) for n in version.split('.')[:-1])
 has_autocast = version >= (1, 6)
 # ######################################################
+
+def get_data(args):
+  dataloader = torch.utils.data.DataLoader(
+    Dataset('data', 'train', download=True, hr_size=[96, 96], lr_size=[24, 24]),
+    batch_size=args.batch_size, pin_memory=True, shuffle=True,
+  )  
+  return dataloader
+
+
 
 def show_tensor_images(image_tensor):
     '''
@@ -30,7 +42,19 @@ def show_tensor_images(image_tensor):
 
 
 
-
 def save_images(images, path, **kwargs):
     save_image(images[:1], path)
+
+
+
+
+
+def show_images(path, **kwargs):
+  image = Image.open(path)
+  np_array = np.array(image)
+
+  np_array.shape
+  pil_image=Image.fromarray(np_array)
+  pil_image.show()
+  
     
