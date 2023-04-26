@@ -1,10 +1,46 @@
-def train_srgan(generator, discriminator, dataloader, device, lr=1e-4, total_steps=2e5, display_step=500):
+import os
+import torch
+import argparse
+from tqdm import tqdm
+
+# My file
+from loss import Loss
+from utils import show_tensor_images, save_images, get_data
+from modules import Generator, Discriminator
+
+from GPUtil import showUtilization as gpu_usage
+
+from torch._inductor import config
+config.compile_threads = 1
+
+# Parse torch version for autocast
+# ######################################################
+version = torch.__version__
+version = tuple(int(n) for n in version.split('.')[:-1])
+has_autocast = version >= (1, 6)
+# ######################################################
+
+
+
+
+def train_srgan(args):
+    device = args.device
+    total_steps = args.epochs
+    display_step = args.display_step
+
+    
+    generator = torch.load(args.gen_path)
     generator = generator.to(device).train()
+
+    discriminator = Discriminator(n_blocks=1, base_channels=8)
     discriminator = discriminator.to(device).train()
+    
     loss_fn = Loss(device=device)
 
-    g_optimizer = torch.optim.Adam(generator.parameters(), lr=lr)
-    d_optimizer = torch.optim.Adam(discriminator.parameters(), lr=lr)
+    dataloader = get_data(args)
+
+    g_optimizer = torch.optim.Adam(generator.parameters(), lr=args.lr)
+    d_optimizer = torch.optim.Adam(discriminator.parameters(), lr=args.lr)
     g_scheduler = torch.optim.lr_scheduler.LambdaLR(g_optimizer, lambda _: 0.1)
     d_scheduler = torch.optim.lr_scheduler.LambdaLR(d_optimizer, lambda _: 0.1)
 
@@ -53,9 +89,37 @@ def train_srgan(generator, discriminator, dataloader, device, lr=1e-4, total_ste
                 show_tensor_images(lr_real * 2 - 1)
                 show_tensor_images(hr_fake.to(hr_real.dtype))
                 show_tensor_images(hr_real)
+
+                save_images(lr_real, os.path.join("./img_srg/lr_real", f"lr_real_{cur_step}.jpg"))
+                save_images(hr_fake, os.path.join("./img_srg/hr_fake", f"hr_fake_{cur_step}.jpg"))
+                save_images(hr_real, os.path.join("./img_srg/hr_real", f"hr_real_{cur_step}.jpg"))
+
                 mean_g_loss = 0.0
                 mean_d_loss = 0.0
+                torch.save(generator, './model/generator.pt')
+                torch.save(discriminator, './model/discriminator.pt')
+                gpu_usage()
 
             cur_step += 1
             if cur_step == total_steps:
                 break
+
+
+if __name__ == "__main__":
+  
+
+ # ARGUMENTS PARSER
+  p = argparse.ArgumentParser()
+  
+  p.add_argument("--epochs", type=float, default=2e5, help='(부동소수점) 훈련 횟수를 정해주세요')
+  p.add_argument("--batch_size", type=int, default=16, help='(정수)배치 사이즈를 정해주세요')
+  p.add_argument("--display_step", type=int, default=500, help='(정수) 디스플레이 스탭을 정해주세요')
+  p.add_argument("--device", type=str, default="cuda", help='(글자)GPU 로 돌릴지 CPU로 돌릴지 정해주세요!')
+  p.add_argument("--lr", type=float, default=1e-4, help='(부동소수점)러닝레이트를 넣어주세요')
+  p.add_argument("--gen_path", type=str, default="./model/srresnet.pt", help='(글자)srresnet model 경로를 설정해주세요!')
+                  
+  args = p.parse_args()
+  
+
+  train_srgan(args)
+  
