@@ -1,12 +1,16 @@
-from tqdm import tqdm
-import torch
-from loss import Loss
-from utils import show_tensor_images, save_images
-from modules import Generator
-from datasets import Dataset
 import os
-
+import torch
+import argparse
 import torch._dynamo
+from tqdm import tqdm
+
+# My file
+from loss import Loss
+from utils import show_tensor_images, save_images, get_data
+from modules import Generator
+
+
+
 
 
 # Parse torch version for autocast
@@ -16,9 +20,18 @@ version = tuple(int(n) for n in version.split('.')[:-1])
 has_autocast = version >= (1, 6)
 # ######################################################
 
-def train_srresnet(srresnet, dataloader, device, lr=1e-4, total_steps=1e6, display_step=500):
+def train_srresnet(args):
+    device = args.device
+    total_steps = args.epochs
+    display_step = args.display_step
+
+    # device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    generator = Generator(n_res_blocks=16, n_ps_blocks=2)
+    srresnet = torch.compile(generator, backend="inductor")
+    dataloader = get_data(args)
+
     srresnet = srresnet.to(device).train()
-    optimizer = torch.optim.Adam(srresnet.parameters(), lr=lr)
+    optimizer = torch.optim.Adam(srresnet.parameters(), lr=args.lr)
 
     cur_step = 0
     mean_loss = 0.0
@@ -53,10 +66,10 @@ def train_srresnet(srresnet, dataloader, device, lr=1e-4, total_steps=1e6, displ
                 show_tensor_images(hr_fake.to(hr_real.dtype))
                 show_tensor_images(hr_real)
                 mean_loss = 0.0
-                save_images(lr_real, os.path.join("/content/SRGAN-From-Scratch/img/lr_real", f"lr_real_{cur_step}.jpg"))
-                save_images(hr_fake, os.path.join("/content/SRGAN-From-Scratch/img/hr_fake", f"hr_fake_{cur_step}.jpg"))
-                save_images(hr_real, os.path.join("/content/SRGAN-From-Scratch/img/hr_real", f"hr_real_{cur_step}.jpg"))
-                
+                save_images(lr_real, os.path.join("./img/lr_real", f"lr_real_{cur_step}.jpg"))
+                save_images(hr_fake, os.path.join("./img/hr_fake", f"hr_fake_{cur_step}.jpg"))
+                save_images(hr_real, os.path.join("./img/hr_real", f"hr_real_{cur_step}.jpg"))
+                torch.save(srresnet, './model/srresnet.pt')
 
             cur_step += 1
             if cur_step == total_steps:
@@ -67,22 +80,18 @@ if __name__ == "__main__":
   torch._dynamo.config.suppress_errors = True
   torch._dynamo.config.verbose= True
 
-  device = 'cuda' if torch.cuda.is_available() else 'cpu'
-  generator = Generator(n_res_blocks=16, n_ps_blocks=2)
-  generator = torch.compile(generator, backend="inductor")
+ # ARGUMENTS PARSER
+  p = argparse.ArgumentParser()
+  
+  p.add_argument("--epochs", type=float, default=1e5, help='(부동소수점) 훈련 횟수를 정해주세요')
+  p.add_argument("--batch_size", type=int, default=16, help='(정수)배치 사이즈를 정해주세요')
+  p.add_argument("--display_step", type=int, default=500, help='(정수) 디스플레이 스탭을 정해주세요')
+  p.add_argument("--device", type=str, default="cuda", help='(글자)GPU 로 돌릴지 CPU로 돌릴지 정해주세요!')
+  p.add_argument("--lr", type=float, default=1e-4, help='(부동소수점)러닝레이트를 넣어주세요')
+                  
+  args = p.parse_args()
+  
 
-  # Uncomment the following lines if you're using ImageNet
-  # dataloader = torch.utils.data.DataLoader(
-  #     Dataset('data', 'train', download=True, hr_size=[384, 384], lr_size=[96, 96]),
-  #     batch_size=16, pin_memory=True, shuffle=True,
-  # )
-  # train_srresnet(generator, dataloader, device, lr=1e-4, total_steps=1e6, display_step=500)
-  # torch.save(generator, 'srresnet.pt')
-  # Uncomment the following lines if you're using STL
-  dataloader = torch.utils.data.DataLoader(
-      Dataset('data', 'train', download=True, hr_size=[96, 96], lr_size=[24, 24]),
-      batch_size=16, pin_memory=True, shuffle=True,
-  )
-  train_srresnet(generator, dataloader, device, lr=1e-4, total_steps=1e5, display_step=1000)
-  torch.save(generator, 'srresnet.pt')
+  train_srresnet(args)
+  
       
