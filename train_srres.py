@@ -1,7 +1,6 @@
 import os
 import torch
 import argparse
-import torch._dynamo
 from tqdm import tqdm
 
 # My file
@@ -9,9 +8,10 @@ from loss import Loss
 from utils import show_tensor_images, save_images, get_data
 from modules import Generator
 
+from GPUtil import showUtilization as gpu_usage
 
-
-
+from torch._inductor import config
+config.compile_threads = 1
 
 # Parse torch version for autocast
 # ######################################################
@@ -26,8 +26,7 @@ def train_srresnet(args):
     display_step = args.display_step
 
     # device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    generator = Generator(n_res_blocks=16, n_ps_blocks=2)
-    srresnet = torch.compile(generator, backend="inductor")
+    srresnet = Generator(n_res_blocks=16, n_ps_blocks=2)
     dataloader = get_data(args)
 
     srresnet = srresnet.to(device).train()
@@ -66,10 +65,11 @@ def train_srresnet(args):
                 show_tensor_images(hr_fake.to(hr_real.dtype))
                 show_tensor_images(hr_real)
                 mean_loss = 0.0
-                save_images(lr_real, os.path.join("./img/lr_real", f"lr_real_{cur_step}.jpg"))
-                save_images(hr_fake, os.path.join("./img/hr_fake", f"hr_fake_{cur_step}.jpg"))
-                save_images(hr_real, os.path.join("./img/hr_real", f"hr_real_{cur_step}.jpg"))
+                save_images(lr_real, os.path.join("./img_srr/lr_real", f"lr_real_{cur_step}.jpg"))
+                save_images(hr_fake, os.path.join("./img_srr/hr_fake", f"hr_fake_{cur_step}.jpg"))
+                save_images(hr_real, os.path.join("./img_srr/hr_real", f"hr_real_{cur_step}.jpg"))
                 torch.save(srresnet, './model/srresnet.pt')
+                gpu_usage()
 
             cur_step += 1
             if cur_step == total_steps:
@@ -77,8 +77,7 @@ def train_srresnet(args):
 
 
 if __name__ == "__main__":
-  torch._dynamo.config.suppress_errors = True
-  torch._dynamo.config.verbose= True
+
 
  # ARGUMENTS PARSER
   p = argparse.ArgumentParser()
