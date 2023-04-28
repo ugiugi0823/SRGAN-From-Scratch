@@ -1,11 +1,12 @@
 import os
 import torch
+import wandb
 import argparse
 from tqdm import tqdm
 
 # My file
 from loss import Loss
-from utils import show_tensor_images, save_images, get_data
+from utils import show_tensor_images, save_images, get_data, show_tensor_images_wandb
 from modules import Generator, Discriminator
 
 from GPUtil import showUtilization as gpu_usage
@@ -49,6 +50,10 @@ def train_srgan(args):
 
     mean_g_loss = 0.0
     mean_d_loss = 0.0
+    
+    
+    # show image in wandb
+    columns=["id", "lr_real", "hr_fake", "hr_real"]
 
     while cur_step < total_steps:
         for hr_real, lr_real in tqdm(dataloader, position=0):
@@ -78,6 +83,8 @@ def train_srgan(args):
 
             mean_g_loss += g_loss.item() / display_step
             mean_d_loss += d_loss.item() / display_step
+            
+            wandb.log({"G_Loss": mean_g_loss}, {"D_Loss": mean_d_loss})
 
             if cur_step == lr_step:
                 g_scheduler.step()
@@ -85,10 +92,26 @@ def train_srgan(args):
                 print('Decayed learning rate by 10x.')
 
             if cur_step % display_step == 0 and cur_step > 0:
+                # 완드비 로그
+                
+                
+                
                 print('Step {}: Generator loss: {:.5f}, Discriminator loss: {:.5f}'.format(cur_step, mean_g_loss, mean_d_loss))
                 show_tensor_images(lr_real * 2 - 1)
                 show_tensor_images(hr_fake.to(hr_real.dtype))
                 show_tensor_images(hr_real)
+                
+                show_lr_real = show_tensor_images_wandb(lr_real * 2 - 1)
+                show_hr_fake = show_tensor_images_wandb(hr_fake.to(hr_real.dtype))
+                show_hr_real = show_tensor_images_wandb(hr_real)
+                
+                
+                test_table = wandb.Table(columns=columns)
+                test_table.add_data(cur_step, wandb.Image(show_lr_real), wandb.Image(show_hr_fake), wandb.Image(show_hr_real))
+                wandb.log({"srgan_predictions" : test_table})
+                
+                
+                
 
                 save_images(lr_real, os.path.join("./img_srg/lr_real", f"lr_real_{cur_step}.jpg"))
                 save_images(hr_fake, os.path.join("./img_srg/hr_fake", f"hr_fake_{cur_step}.jpg"))
@@ -106,10 +129,14 @@ def train_srgan(args):
 
 
 if __name__ == "__main__":
+
   
+ 
 
  # ARGUMENTS PARSER
   p = argparse.ArgumentParser()
+  
+  p.add_argument("--project_name", type=str, default="srgan_project", help='(글자) 프로젝트 이름을 정해주세요!')
   
   p.add_argument("--epochs", type=float, default=2e5, help='(부동소수점) 훈련 횟수를 정해주세요')
   p.add_argument("--batch_size", type=int, default=16, help='(정수)배치 사이즈를 정해주세요')
@@ -119,6 +146,13 @@ if __name__ == "__main__":
   p.add_argument("--gen_path", type=str, default="./model/srresnet.pt", help='(글자)srresnet model 경로를 설정해주세요!')
                   
   args = p.parse_args()
+  # wandb  login
+  wandb.login(key='')
+  run = wandb.init(
+  # Set the project where this run will be logged
+    project=args.project_name,
+  # Track hyperparameters and run metadata
+    config=args)
   
 
   train_srgan(args)
