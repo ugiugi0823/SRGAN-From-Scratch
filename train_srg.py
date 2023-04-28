@@ -137,6 +137,7 @@ if __name__ == "__main__":
   p = argparse.ArgumentParser()
   
   p.add_argument("--project_name", type=str, default="srgan_project", help='(글자) 프로젝트 이름을 정해주세요!')
+  p.add_argument("--run_name", type=str, default="Mickey_srgan_bs-16_lr-1e-4", help='(글자) 프로젝트 이름을 정해주세요!')
   
   p.add_argument("--epochs", type=float, default=2e5, help='(부동소수점) 훈련 횟수를 정해주세요')
   p.add_argument("--batch_size", type=int, default=16, help='(정수)배치 사이즈를 정해주세요')
@@ -151,6 +152,7 @@ if __name__ == "__main__":
   run = wandb.init(
   # Set the project where this run will be logged
     project=args.project_name,
+    name = args.run_name,
   # Track hyperparameters and run metadata
     config=args)
   
