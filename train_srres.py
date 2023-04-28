@@ -128,7 +128,7 @@ if __name__ == "__main__":
   args = p.parse_args()
   
   # wandb  login
-  wandb.login(key='6cb911d9c77cde1da2e1a6a746981fec573e87b4')
+  wandb.login(key='')
   run = wandb.init(
   # Set the project where this run will be logged
     project=args.project_name,
