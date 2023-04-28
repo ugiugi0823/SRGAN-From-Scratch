@@ -39,14 +39,18 @@ def show_tensor_images(image_tensor):
     plt.show()
 
 
-
+def show_tensor_images_wandb(images, **kwargs):
+    images = (images + 1) / 2
+    images = images[:1]
+    images = images.squeeze()
+    images = images.permute(1, 2, 0)
+    ndarr = images.detach().cpu().numpy()    
+    im = Image.fromarray((ndarr * 255).astype(np.uint8))
+    return im
 
 
 def save_images(images, path, **kwargs):
     save_image(images[:1], path)
-
-
-
 
 
 def show_images(path, **kwargs):
